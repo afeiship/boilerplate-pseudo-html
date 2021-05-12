@@ -3,20 +3,27 @@ class Cook
     # cook
     assets_dir = Rails.root.join("assets").to_s
     site_url = "http://localhost:3000"
+    thread_size = 50
 
-    records = Post.limit(10)
+    records = Post.limit(2000)
     bar = ProgressBar.new(records.size)
-    records.each_with_index do |post, index|
-      system "mkdir -p #{assets_dir}/#{name}/"
-      key = "#{name}/#{post.id}.html"
-      filename = "#{assets_dir}/#{key}"
-      url = "#{site_url}/#{key}"
+    system "mkdir -p #{assets_dir}/#{name}/"
+    size = records.size / thread_size
 
-      File.open(filename, "wb") do |file|
-        file.write URI.open(url, encoding: "UTF-8").read
+    threads = records.each_slice(size).map do |items|
+      Thread.new do
+        items.each do |item|
+          key = "#{name}/#{item.id}.html"
+          filename = "#{assets_dir}/#{key}"
+          url = "#{site_url}/#{key}"
+          File.open(filename, "wb") do |file|
+            file.write URI.open(url, encoding: "UTF-8").read
+          end
+          bar.increment!
+        end
       end
-
-      bar.increment!
     end
+
+    threads.each(&:join)
   end
 end
